@@ -8,7 +8,14 @@ Unified scraping pipeline that runs all steps in order:
 
 import subprocess
 import sys
+import io
+import os
 from datetime import datetime
+
+# Fix encoding for Windows console
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 
 class ScrapingPipeline:
@@ -26,7 +33,7 @@ class ScrapingPipeline:
         """Log progress and call callback if provided."""
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         log_message = f"[{timestamp}] [{status.upper()}] {step}: {message}"
-        print(log_message)
+        print(log_message, flush=True)  # Force flush for real-time output
 
         if self.progress_callback:
             self.progress_callback(step, message, status)
@@ -42,59 +49,111 @@ class ScrapingPipeline:
         Returns:
             bool: True if successful, False otherwise
         """
-        self.log(description, f"Starting {script_name}...", "info")
+        self.log(description, "=" * 60, "info")
+        self.log(description, f"▶ STARTING: {description}", "info")
+        self.log(description, f"Script: {script_name}", "info")
+        self.log(description, "=" * 60, "info")
 
         try:
+            # Set environment for unbuffered output
+            env = os.environ.copy()
+            env['PYTHONUNBUFFERED'] = '1'
+            env['PYTHONIOENCODING'] = 'utf-8'
+
             # Run the script and capture output
             process = subprocess.Popen(
-                [sys.executable, script_name],
+                [sys.executable, '-u', script_name],  # -u for unbuffered
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
                 bufsize=1,
-                universal_newlines=True
+                universal_newlines=True,
+                env=env,
+                encoding='utf-8',
+                errors='replace'
             )
 
-            # Stream output line by line
+            line_count = 0
+            # Stream output line by line - show EVERYTHING
             for line in process.stdout:
-                line = line.strip()
-                if line:
-                    print(line)
-                    if self.progress_callback:
-                        self.progress_callback(description, line, "progress")
+                line_stripped = line.rstrip('\n\r')  # Keep spacing but remove newlines
+                # Show ALL output, even empty lines
+                line_count += 1
+                output_line = f"  {line_stripped}" if line_stripped else ""
+                print(output_line, flush=True)
+                if self.progress_callback:
+                    self.progress_callback(description, output_line, "progress")
 
             # Wait for process to complete
             process.wait()
 
             if process.returncode == 0:
-                self.log(description, f"✓ Completed {script_name}", "success")
+                self.log(description, "-" * 60, "success")
+                self.log(description, f"✓ COMPLETED: {description}", "success")
+                self.log(description, f"Output lines: {line_count}", "success")
+                self.log(description, "-" * 60, "success")
+                print(flush=True)  # Empty line for spacing
                 return True
             else:
-                self.log(description, f"✗ Failed with exit code {process.returncode}", "error")
+                self.log(description, "=" * 60, "error")
+                self.log(description, f"✗ FAILED: {description}", "error")
+                self.log(description, f"Exit code: {process.returncode}", "error")
+                self.log(description, "=" * 60, "error")
                 return False
 
         except Exception as e:
-            self.log(description, f"✗ Error: {str(e)}", "error")
+            self.log(description, "=" * 60, "error")
+            self.log(description, f"✗ ERROR: {description}", "error")
+            self.log(description, f"Exception: {str(e)}", "error")
+            self.log(description, "=" * 60, "error")
             return False
 
     def run(self):
         """Run the complete scraping pipeline."""
-        self.log("Pipeline", "Starting scraping pipeline", "info")
+        print(flush=True)
+        print("╔" + "═" * 78 + "╗", flush=True)
+        print("║" + " " * 20 + "FASHION SCRAPER PIPELINE" + " " * 34 + "║", flush=True)
+        print("╚" + "═" * 78 + "╝", flush=True)
+        print(flush=True)
+
+        self.log("Pipeline", "🚀 Initializing scraping pipeline...", "info")
+        print(flush=True)
 
         steps = [
-            ("scraper_categories.py", "Step 1: Web Scraping"),
-            ("clean_prices.py", "Step 2: Price Cleaning"),
-            ("extract_colors.py", "Step 3: Color Extraction"),
-            ("import_to_database.py", "Step 4: Database Import"),
+            ("scraper_categories.py", "Step 1: Web Scraping", "Collecting product data from competitor websites"),
+            ("clean_prices.py", "Step 2: Price Cleaning", "Normalizing and validating price information"),
+            ("extract_colors.py", "Step 3: Color Extraction", "Analyzing and categorizing product colors"),
+            ("import_to_database.py", "Step 4: Database Import", "Saving processed data to database"),
         ]
 
-        for script, description in steps:
+        total_steps = len(steps)
+
+        for idx, (script, description, detail) in enumerate(steps, 1):
+            self.log("Pipeline", f"📋 Progress: Step {idx}/{total_steps}", "info")
+            self.log("Pipeline", f"📝 {detail}", "info")
+            print(flush=True)
+
             success = self.run_script(script, description)
+
             if not success:
-                self.log("Pipeline", f"Pipeline failed at: {description}", "error")
+                print(flush=True)
+                print("╔" + "═" * 78 + "╗", flush=True)
+                print("║" + " " * 25 + "PIPELINE FAILED" + " " * 38 + "║", flush=True)
+                print("╚" + "═" * 78 + "╝", flush=True)
+                self.log("Pipeline", f"❌ Pipeline failed at: {description}", "error")
                 return False
 
-        self.log("Pipeline", "✓ Pipeline completed successfully!", "success")
+            print(flush=True)
+
+        print(flush=True)
+        print("╔" + "═" * 78 + "╗", flush=True)
+        print("║" + " " * 22 + "PIPELINE COMPLETED" + " " * 37 + "║", flush=True)
+        print("╚" + "═" * 78 + "╝", flush=True)
+        print(flush=True)
+        self.log("Pipeline", "✅ All steps completed successfully!", "success")
+        self.log("Pipeline", f"📊 Total steps executed: {total_steps}", "success")
+        self.log("Pipeline", "🎉 Data is ready for analysis!", "success")
+        print(flush=True)
         return True
 
 

@@ -18,8 +18,22 @@ interface ProgressMessage {
   timestamp: Date;
 }
 
+interface StepInfo {
+  name: string;
+  description: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+}
+
+const PIPELINE_STEPS: StepInfo[] = [
+  { name: 'Step 1: Web Scraping', description: 'Collecting product data from competitor websites', status: 'pending' },
+  { name: 'Step 2: Price Cleaning', description: 'Normalizing and validating price information', status: 'pending' },
+  { name: 'Step 3: Color Extraction', description: 'Analyzing and categorizing product colors', status: 'pending' },
+  { name: 'Step 4: Database Import', description: 'Saving processed data to database', status: 'pending' },
+];
+
 export const ScrapingProgressModal = ({ isOpen, onClose }: ScrapingProgressModalProps) => {
   const [messages, setMessages] = useState<ProgressMessage[]>([]);
+  const [steps, setSteps] = useState<StepInfo[]>(PIPELINE_STEPS);
   const [isRunning, setIsRunning] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -50,8 +64,45 @@ export const ScrapingProgressModal = ({ isOpen, onClose }: ScrapingProgressModal
     };
   }, []);
 
+  const updateStepStatus = (message: string) => {
+    // Check if message indicates a step starting
+    if (message.includes('▶ STARTING:')) {
+      const stepMatch = message.match(/Step (\d+):/);
+      if (stepMatch) {
+        const stepIndex = parseInt(stepMatch[1]) - 1;
+        setSteps(prev => prev.map((step, idx) => ({
+          ...step,
+          status: idx === stepIndex ? 'running' : step.status
+        })));
+      }
+    }
+    // Check if message indicates a step completed
+    else if (message.includes('✓ COMPLETED:')) {
+      const stepMatch = message.match(/Step (\d+):/);
+      if (stepMatch) {
+        const stepIndex = parseInt(stepMatch[1]) - 1;
+        setSteps(prev => prev.map((step, idx) => ({
+          ...step,
+          status: idx === stepIndex ? 'completed' : step.status
+        })));
+      }
+    }
+    // Check if message indicates a step failed
+    else if (message.includes('✗ FAILED:')) {
+      const stepMatch = message.match(/Step (\d+):/);
+      if (stepMatch) {
+        const stepIndex = parseInt(stepMatch[1]) - 1;
+        setSteps(prev => prev.map((step, idx) => ({
+          ...step,
+          status: idx === stepIndex ? 'failed' : step.status
+        })));
+      }
+    }
+  };
+
   const startScraping = async () => {
     setMessages([]);
+    setSteps(PIPELINE_STEPS.map(s => ({ ...s, status: 'pending' })));
     setIsRunning(true);
     setIsComplete(false);
     setHasError(false);
@@ -96,6 +147,7 @@ export const ScrapingProgressModal = ({ isOpen, onClose }: ScrapingProgressModal
               };
 
               setMessages(prev => [...prev, newMessage]);
+              updateStepStatus(data.message);
 
               if (data.step === 'complete') {
                 setIsComplete(true);
@@ -132,6 +184,7 @@ export const ScrapingProgressModal = ({ isOpen, onClose }: ScrapingProgressModal
     // Reset state after a short delay to allow for smooth closing animation
     setTimeout(() => {
       setMessages([]);
+      setSteps(PIPELINE_STEPS.map(s => ({ ...s, status: 'pending' })));
       setIsRunning(false);
       setIsComplete(false);
       setHasError(false);
@@ -158,6 +211,20 @@ export const ScrapingProgressModal = ({ isOpen, onClose }: ScrapingProgressModal
     return "Ready to Scrape";
   };
 
+  const getStepIcon = (status: StepInfo['status']) => {
+    switch (status) {
+      case 'completed':
+        return <CheckCircle2 className="h-5 w-5 text-green-500" />;
+      case 'running':
+        return <Loader2 className="h-5 w-5 text-primary animate-spin" />;
+      case 'failed':
+        return <XCircle className="h-5 w-5 text-destructive" />;
+      case 'pending':
+      default:
+        return <div className="h-5 w-5 rounded-full border-2 border-muted" />;
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
       <DialogContent className="max-w-3xl max-h-[80vh]">
@@ -174,6 +241,41 @@ export const ScrapingProgressModal = ({ isOpen, onClose }: ScrapingProgressModal
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Step Progress Indicators */}
+          <div className="bg-card border border-border rounded-lg p-4">
+            <div className="space-y-3">
+              {steps.map((step, index) => (
+                <div key={index} className="flex items-start gap-3">
+                  <div className="mt-0.5">
+                    {getStepIcon(step.status)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h4 className={`text-sm font-medium ${
+                        step.status === 'running' ? 'text-primary' :
+                        step.status === 'completed' ? 'text-green-600' :
+                        step.status === 'failed' ? 'text-destructive' :
+                        'text-muted-foreground'
+                      }`}>
+                        {step.name}
+                      </h4>
+                      {step.status === 'running' && (
+                        <span className="text-xs text-primary font-medium">In Progress...</span>
+                      )}
+                      {step.status === 'completed' && (
+                        <span className="text-xs text-green-600 font-medium">Completed</span>
+                      )}
+                      {step.status === 'failed' && (
+                        <span className="text-xs text-destructive font-medium">Failed</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">{step.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Progress Log */}
           <div className="border rounded-lg bg-slate-950 text-slate-50 p-4">
             <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-800">

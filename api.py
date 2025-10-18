@@ -755,12 +755,18 @@ async def run_scraping():
         script_path = Path(__file__).parent / "run_scraping_pipeline.py"
 
         try:
+            # Set environment variables for unbuffered output and UTF-8
+            env = os.environ.copy()
+            env['PYTHONUNBUFFERED'] = '1'
+            env['PYTHONIOENCODING'] = 'utf-8'
+
             # Run the pipeline script
             process = await asyncio.create_subprocess_exec(
-                sys.executable, str(script_path),
+                sys.executable, '-u', str(script_path),  # -u flag for unbuffered
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
-                cwd=str(Path(__file__).parent)
+                cwd=str(Path(__file__).parent),
+                env=env
             )
 
             # Stream output line by line
@@ -769,7 +775,12 @@ async def run_scraping():
                 if not line:
                     break
 
-                line_text = line.decode().strip()
+                # Decode with UTF-8 and handle errors gracefully
+                try:
+                    line_text = line.decode('utf-8', errors='replace').strip()
+                except Exception as decode_error:
+                    line_text = f"[Decode error: {str(decode_error)}]"
+
                 if line_text:
                     # Send each line as an SSE event
                     yield f"data: {json.dumps({'step': 'progress', 'message': line_text, 'status': 'info'})}\n\n"

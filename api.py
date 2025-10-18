@@ -160,19 +160,37 @@ def get_products(
     conn = get_db()
     cursor = conn.cursor()
 
-    # Build base query with filters
-    base_query = """
+    # Build date filter for subqueries
+    date_filter_ph = ""
+    date_filter_ch = ""
+    date_params = []
+
+    if start_date and end_date:
+        date_filter_ph = " AND DATE(scraped_at) BETWEEN ? AND ?"
+        date_filter_ch = " AND DATE(scraped_at) BETWEEN ? AND ?"
+        date_params = [start_date, end_date, start_date, end_date]
+    elif start_date:
+        date_filter_ph = " AND DATE(scraped_at) >= ?"
+        date_filter_ch = " AND DATE(scraped_at) >= ?"
+        date_params = [start_date, start_date]
+    elif end_date:
+        date_filter_ph = " AND DATE(scraped_at) <= ?"
+        date_filter_ch = " AND DATE(scraped_at) <= ?"
+        date_params = [end_date, end_date]
+
+    # Build base query with filters - get latest records within date range
+    base_query = f"""
         FROM products p
         LEFT JOIN product_names pn ON p.id = pn.product_id
         LEFT JOIN price_history ph ON p.id = ph.product_id
         LEFT JOIN color_history ch ON p.id = ch.product_id
         WHERE p.is_active = 1
           AND pn.id IN (SELECT MAX(id) FROM product_names GROUP BY product_id)
-          AND (ph.id IS NULL OR ph.id IN (SELECT MAX(id) FROM price_history GROUP BY product_id))
-          AND (ch.id IS NULL OR ch.id IN (SELECT MAX(id) FROM color_history GROUP BY product_id))
+          AND (ph.id IS NULL OR ph.id IN (SELECT MAX(id) FROM price_history WHERE product_id = p.id{date_filter_ph}))
+          AND (ch.id IS NULL OR ch.id IN (SELECT MAX(id) FROM color_history WHERE product_id = p.id{date_filter_ch}))
     """
 
-    params = []
+    params = date_params.copy()
 
     if site:
         if site.lower() == "fashionbug":
@@ -187,14 +205,6 @@ def get_products(
     if clothing_type:
         base_query += " AND LOWER(p.clothing_type) LIKE ?"
         params.append(f"%{clothing_type.lower()}%")
-
-    if start_date:
-        base_query += " AND DATE(ph.scraped_at) >= ?"
-        params.append(start_date)
-
-    if end_date:
-        base_query += " AND DATE(ph.scraped_at) <= ?"
-        params.append(end_date)
 
     # Get total count
     count_query = f"SELECT COUNT(DISTINCT p.id) {base_query}"

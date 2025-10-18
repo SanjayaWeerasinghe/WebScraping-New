@@ -12,6 +12,7 @@ export interface ScrapedItem {
   name: string;
   price: number;
   colors: string[];  // Array of colors
+  imageUrl?: string;  // Product image URL
   dateScraped: string;
 }
 

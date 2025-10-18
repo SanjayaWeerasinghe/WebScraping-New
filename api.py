@@ -40,6 +40,7 @@ class ScrapedItem(BaseModel):
     name: str
     price: float
     colors: List[str]  # All colors from the product
+    imageUrl: Optional[str]  # Product image URL
     dateScraped: str
 
 
@@ -163,20 +164,24 @@ def get_products(
     # Build date filter for subqueries
     date_filter_ph = ""
     date_filter_ch = ""
+    date_filter_ih = ""
     date_params = []
 
     if start_date and end_date:
         date_filter_ph = " AND DATE(scraped_at) BETWEEN ? AND ?"
         date_filter_ch = " AND DATE(scraped_at) BETWEEN ? AND ?"
-        date_params = [start_date, end_date, start_date, end_date]
+        date_filter_ih = " AND DATE(scraped_at) BETWEEN ? AND ?"
+        date_params = [start_date, end_date, start_date, end_date, start_date, end_date]
     elif start_date:
         date_filter_ph = " AND DATE(scraped_at) >= ?"
         date_filter_ch = " AND DATE(scraped_at) >= ?"
-        date_params = [start_date, start_date]
+        date_filter_ih = " AND DATE(scraped_at) >= ?"
+        date_params = [start_date, start_date, start_date]
     elif end_date:
         date_filter_ph = " AND DATE(scraped_at) <= ?"
         date_filter_ch = " AND DATE(scraped_at) <= ?"
-        date_params = [end_date, end_date]
+        date_filter_ih = " AND DATE(scraped_at) <= ?"
+        date_params = [end_date, end_date, end_date]
 
     # Build base query with filters - get latest records within date range
     base_query = f"""
@@ -184,10 +189,12 @@ def get_products(
         LEFT JOIN product_names pn ON p.id = pn.product_id
         LEFT JOIN price_history ph ON p.id = ph.product_id
         LEFT JOIN color_history ch ON p.id = ch.product_id
+        LEFT JOIN image_history ih ON p.id = ih.product_id
         WHERE p.is_active = 1
           AND pn.id IN (SELECT MAX(id) FROM product_names GROUP BY product_id)
           AND (ph.id IS NULL OR ph.id IN (SELECT MAX(id) FROM price_history WHERE product_id = p.id{date_filter_ph}))
           AND (ch.id IS NULL OR ch.id IN (SELECT MAX(id) FROM color_history WHERE product_id = p.id{date_filter_ch}))
+          AND (ih.id IS NULL OR ih.id IN (SELECT MAX(id) FROM image_history WHERE product_id = p.id{date_filter_ih}))
     """
 
     params = date_params.copy()
@@ -227,7 +234,8 @@ def get_products(
             ph.price,
             ph.price_numeric,
             ph.scraped_at as price_date,
-            ch.colors
+            ch.colors,
+            ih.image_url
         {base_query}
         ORDER BY p.gender, p.site, p.id
         LIMIT ? OFFSET ?
@@ -262,6 +270,7 @@ def get_products(
             name=product['name'] or "Unknown Product",
             price=product['price_numeric'] or 0.0,
             colors=colors_list,
+            imageUrl=product['image_url'] if product['image_url'] else None,
             dateScraped=product['price_date'][:10] if product['price_date'] else datetime.now().strftime("%Y-%m-%d")
         ))
 

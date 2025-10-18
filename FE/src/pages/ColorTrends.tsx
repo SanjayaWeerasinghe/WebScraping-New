@@ -333,6 +333,7 @@ const ColorTrends = () => {
       "color-price-trends",
       filters.competitor,
       filters.clothingType,
+      filters.clothingSubtype,
       filters.startDate,
       filters.endDate,
     ],
@@ -341,6 +342,8 @@ const ColorTrends = () => {
         site: filters.competitor !== "all" ? filters.competitor : undefined,
         gender:
           filters.clothingType !== "all" ? filters.clothingType : undefined,
+        clothing_type:
+          filters.clothingSubtype !== "all" ? filters.clothingSubtype : undefined,
         start_date: filters.startDate || undefined,
         end_date: filters.endDate || undefined,
       }),

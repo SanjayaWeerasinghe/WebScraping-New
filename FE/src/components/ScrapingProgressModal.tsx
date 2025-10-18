@@ -227,8 +227,8 @@ export const ScrapingProgressModal = ({ isOpen, onClose }: ScrapingProgressModal
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="max-w-3xl max-h-[80vh]">
-        <DialogHeader>
+      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             {getStatusIcon()}
             {getStatusText()}
@@ -240,7 +240,7 @@ export const ScrapingProgressModal = ({ isOpen, onClose }: ScrapingProgressModal
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto space-y-4 pr-2">
           {/* Step Progress Indicators */}
           <div className="bg-card border border-border rounded-lg p-4">
             <div className="space-y-3">
@@ -282,7 +282,7 @@ export const ScrapingProgressModal = ({ isOpen, onClose }: ScrapingProgressModal
               <Terminal className="h-4 w-4" />
               <span className="text-sm font-medium">Console Output</span>
             </div>
-            <ScrollArea className="h-[400px]" ref={scrollRef}>
+            <ScrollArea className="h-[300px]" ref={scrollRef}>
               <div className="space-y-1 font-mono text-xs">
                 {messages.length === 0 && (
                   <div className="text-slate-400">Waiting for output...</div>
@@ -290,7 +290,7 @@ export const ScrapingProgressModal = ({ isOpen, onClose }: ScrapingProgressModal
                 {messages.map((msg, index) => (
                   <div
                     key={index}
-                    className={`py-1 ${
+                    className={`py-1 break-words ${
                       msg.status === 'error' ? 'text-red-400' :
                       msg.status === 'success' ? 'text-green-400' :
                       'text-slate-300'
@@ -305,21 +305,21 @@ export const ScrapingProgressModal = ({ isOpen, onClose }: ScrapingProgressModal
               </div>
             </ScrollArea>
           </div>
+        </div>
 
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-2">
-            {!isRunning && (
-              <Button onClick={handleClose} variant="outline">
-                Close
-              </Button>
-            )}
-            {isRunning && (
-              <Button disabled variant="secondary">
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Processing...
-              </Button>
-            )}
-          </div>
+        {/* Action Buttons */}
+        <div className="flex justify-end gap-2 flex-shrink-0 pt-4 border-t">
+          {!isRunning && (
+            <Button onClick={handleClose} variant="outline">
+              Close
+            </Button>
+          )}
+          {isRunning && (
+            <Button disabled variant="secondary">
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Processing...
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>

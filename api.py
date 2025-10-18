@@ -607,6 +607,7 @@ def get_product_timeline(
 def get_color_price_trends(
     site: Optional[str] = None,
     gender: Optional[str] = None,
+    clothing_type: Optional[str] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None
 ):
@@ -621,6 +622,7 @@ def get_color_price_trends(
             ch.colors,
             p.site,
             p.gender,
+            p.clothing_type,
             ph.price_numeric
         FROM products p
         JOIN price_history ph ON p.id = ph.product_id
@@ -640,6 +642,10 @@ def get_color_price_trends(
     if gender:
         query += " AND LOWER(p.gender) = ?"
         params.append(gender.lower())
+
+    if clothing_type:
+        query += " AND LOWER(p.clothing_type) LIKE ?"
+        params.append(f"%{clothing_type.lower()}%")
 
     if start_date:
         query += " AND DATE(ph.scraped_at) >= ?"

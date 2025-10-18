@@ -245,6 +245,7 @@ export async function fetchProductTimeline(params?: {
 export async function fetchColorPriceTrends(params?: {
   site?: string;
   gender?: string;
+  clothing_type?: string;
   start_date?: string;
   end_date?: string;
 }): Promise<ColorPriceTrendItem[]> {
@@ -252,6 +253,7 @@ export async function fetchColorPriceTrends(params?: {
 
   if (params?.site) queryParams.append('site', params.site);
   if (params?.gender) queryParams.append('gender', params.gender);
+  if (params?.clothing_type) queryParams.append('clothing_type', params.clothing_type);
   if (params?.start_date) queryParams.append('start_date', params.start_date);
   if (params?.end_date) queryParams.append('end_date', params.end_date);
 

@@ -209,7 +209,7 @@ def get_products(
             ph.scraped_at as price_date,
             ch.colors
         {base_query}
-        ORDER BY p.id
+        ORDER BY p.gender, p.site, p.id
         LIMIT ? OFFSET ?
     """
 
@@ -231,13 +231,14 @@ def get_products(
             colors_list = ["Unknown"]
 
         # Map gender to clothingType
-        clothing_type_mapped = "men" if product['gender'] and "men" in product['gender'].lower() else "women"
+        gender_lower = product['gender'].lower() if product['gender'] else ""
+        clothing_type_mapped = "men" if gender_lower == "men" else "women"
 
         result.append(ScrapedItem(
             id=str(product['id']),
             competitor=map_site_name(product['site']),
             clothingType=clothing_type_mapped,
-            clothingSubtype=map_clothing_subtype(product['clothing_type']),
+            clothingSubtype=product['clothing_type'] or "Unknown",
             name=product['name'] or "Unknown Product",
             price=product['price_numeric'] or 0.0,
             colors=colors_list,

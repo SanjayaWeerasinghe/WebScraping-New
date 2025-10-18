@@ -60,20 +60,22 @@ export interface StatsResponse {
 }
 
 /**
- * Fetch all products with optional filters
+ * Fetch all products with optional filters and pagination
  */
 export async function fetchProducts(params?: {
   site?: string;
   gender?: string;
   clothing_type?: string;
-  limit?: number;
-}): Promise<ScrapedItem[]> {
+  page?: number;
+  page_size?: number;
+}): Promise<PaginatedResponse> {
   const queryParams = new URLSearchParams();
 
   if (params?.site) queryParams.append('site', params.site);
   if (params?.gender) queryParams.append('gender', params.gender);
   if (params?.clothing_type) queryParams.append('clothing_type', params.clothing_type);
-  if (params?.limit) queryParams.append('limit', params.limit.toString());
+  if (params?.page) queryParams.append('page', params.page.toString());
+  if (params?.page_size) queryParams.append('page_size', params.page_size.toString());
 
   const url = `${API_BASE_URL}/api/products${queryParams.toString() ? `?${queryParams}` : ''}`;
 
@@ -81,6 +83,19 @@ export async function fetchProducts(params?: {
 
   if (!response.ok) {
     throw new Error(`Failed to fetch products: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetch available filter options based on actual data
+ */
+export async function fetchFilterOptions(): Promise<FilterOptions> {
+  const response = await fetch(`${API_BASE_URL}/api/filter-options`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch filter options: ${response.statusText}`);
   }
 
   return response.json();

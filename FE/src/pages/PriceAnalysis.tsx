@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FilterBar, Filters } from "@/components/FilterBar";
-import { fetchProducts } from "@/services/api";
+import { fetchProducts, fetchFilterOptions } from "@/services/api";
 import { filterData } from "@/utils/filterData";
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
@@ -12,11 +12,19 @@ const PriceAnalysis = () => {
     clothingSubtype: "all",
   });
 
-  // Fetch products from API
-  const { data: products, isLoading, error } = useQuery({
-    queryKey: ['products'],
-    queryFn: () => fetchProducts({ limit: 2000 }),
+  // Fetch filter options
+  const { data: filterOptions } = useQuery({
+    queryKey: ['filter-options'],
+    queryFn: fetchFilterOptions,
   });
+
+  // Fetch ALL products from API for analysis (no pagination)
+  const { data: productsData, isLoading, error } = useQuery({
+    queryKey: ['products-analysis'],
+    queryFn: () => fetchProducts({ page: 1, page_size: 10000 }),
+  });
+
+  const products = productsData?.items || [];
 
   const handleFilterChange = (key: keyof Filters, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
@@ -47,73 +55,35 @@ const PriceAnalysis = () => {
 
   const filteredData = filterData(products || [], filters);
 
-  // Create category mappings for X-axis
-  const typeMapping = { 'men': 0, 'women': 1 };
-  const subtypeMapping = { 'shirt': 0, 'tshirt': 1, 'skirt': 2, 'jean': 3, 'trouser': 4, 'saree': 5, 'frock': 6 };
+  // Price vs Clothing Type - Combined with Competitor
+  // Creates categories like "FashionBug Men", "CoolPlanet Women", etc.
+  const priceByTypeWithCompetitor = filteredData.map((item) => {
+    const competitorName = item.competitor === "fashionbug" ? "FashionBug" : "CoolPlanet";
+    const typeName = item.clothingType.charAt(0).toUpperCase() + item.clothingType.slice(1); // Capitalize
+    const combinedCategory = `${competitorName} ${typeName}`;
 
-  // Price vs Clothing Type - each item gets its own dot
-  const priceByType = filteredData.map((item) => ({
-    typeValue: typeMapping[item.clothingType],
-    typeName: item.clothingType,
-    price: item.price,
-    name: item.name,
-  }));
-
-  // Price vs Clothing Subtype - each item gets its own dot
-  const priceBySubtype = filteredData.map((item) => ({
-    subtypeValue: subtypeMapping[item.clothingSubtype],
-    subtypeName: item.clothingSubtype,
-    price: item.price,
-    name: item.name,
-  }));
-
-  // Price vs Competitor Clothing Type
-  const fashionbugTypeData = filteredData
-    .filter(item => item.competitor === "fashionbug")
-    .map((item) => ({ 
-      typeValue: typeMapping[item.clothingType],
-      typeName: item.clothingType,
+    return {
+      category: combinedCategory,
       price: item.price,
       name: item.name,
-    }));
-  
-  const coolplanetTypeData = filteredData
-    .filter(item => item.competitor === "coolplanet")
-    .map((item) => ({ 
-      typeValue: typeMapping[item.clothingType],
-      typeName: item.clothingType,
+      competitor: item.competitor,
+    };
+  });
+
+  // Price vs Clothing Subtype with Competitor and Gender
+  const priceBySubtypeWithCompetitor = filteredData.map((item) => {
+    const competitorName = item.competitor === "fashionbug" ? "FashionBug" : "CoolPlanet";
+    const typeName = item.clothingType.charAt(0).toUpperCase() + item.clothingType.slice(1);
+    const subtypeName = item.clothingSubtype.charAt(0).toUpperCase() + item.clothingSubtype.slice(1);
+    const combinedCategory = `${competitorName} ${typeName} ${subtypeName}`;
+
+    return {
+      category: combinedCategory,
       price: item.price,
       name: item.name,
-    }));
-
-  // Price vs Competitor Clothing Subtype
-  const fashionbugSubtypeData = filteredData
-    .filter(item => item.competitor === "fashionbug")
-    .map((item) => ({ 
-      subtypeValue: subtypeMapping[item.clothingSubtype],
-      subtypeName: item.clothingSubtype,
-      price: item.price,
-      name: item.name,
-    }));
-  
-  const coolplanetSubtypeData = filteredData
-    .filter(item => item.competitor === "coolplanet")
-    .map((item) => ({ 
-      subtypeValue: subtypeMapping[item.clothingSubtype],
-      subtypeName: item.clothingSubtype,
-      price: item.price,
-      name: item.name,
-    }));
-
-  // Custom tick formatter
-  const typeTickFormatter = (value: number) => {
-    return value === 0 ? 'Men' : 'Women';
-  };
-
-  const subtypeTickFormatter = (value: number) => {
-    const subtypes = ['Shirt', 'T-Shirt', 'Skirt', 'Jean', 'Trouser', 'Saree', 'Frock'];
-    return subtypes[value] || '';
-  };
+      competitor: item.competitor,
+    };
+  });
 
   return (
     <div className="min-h-screen py-8">
@@ -125,121 +95,110 @@ const PriceAnalysis = () => {
           </p>
         </div>
 
-        <FilterBar filters={filters} onFilterChange={handleFilterChange} />
+        <FilterBar filters={filters} onFilterChange={handleFilterChange} filterOptions={filterOptions} />
 
         <div className="grid gap-8">
-          {/* Price vs Clothing Type */}
+          {/* Price vs Clothing Type by Competitor */}
           <div className="bg-card rounded-xl border border-border shadow-md p-6">
-            <h3 className="text-xl font-semibold mb-6">Price vs Clothing Type</h3>
-            <ResponsiveContainer width="100%" height={400}>
-              <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis 
-                  type="category"
-                  dataKey="typeName" 
-                  name="Type" 
-                  className="text-sm"
-                  allowDuplicatedCategory={false}
-                />
-                <YAxis type="number" dataKey="price" name="Price (LKR)" className="text-sm" />
-                <Tooltip 
-                  cursor={{ strokeDasharray: '3 3' }}
-                  formatter={(value: any, name: string) => {
-                    if (name === "Price (LKR)") return [`LKR ${value}`, name];
-                    return [value, name];
-                  }}
-                />
-                <Legend />
-                <Scatter name="All Products" data={priceByType} fill="hsl(var(--primary))" />
-              </ScatterChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Price vs Clothing Subtype */}
-          <div className="bg-card rounded-xl border border-border shadow-md p-6">
-            <h3 className="text-xl font-semibold mb-6">Price vs Clothing Subtype</h3>
+            <h3 className="text-xl font-semibold mb-6">Price vs Clothing Type by Competitor</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Each dot represents one product. Categories combine competitor and gender.
+            </p>
             <ResponsiveContainer width="100%" height={400}>
               <ScatterChart margin={{ top: 20, right: 20, bottom: 60, left: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis 
+                <XAxis
                   type="category"
-                  dataKey="subtypeName" 
-                  name="Subtype" 
+                  dataKey="category"
+                  name="Category"
                   className="text-sm"
+                  allowDuplicatedCategory={false}
                   angle={-45}
                   textAnchor="end"
-                  height={60}
-                  allowDuplicatedCategory={false}
+                  height={80}
                 />
-                <YAxis type="number" dataKey="price" name="Price (LKR)" className="text-sm" />
-                <Tooltip 
+                <YAxis
+                  type="number"
+                  dataKey="price"
+                  name="Price (Rs)"
+                  className="text-sm"
+                  label={{ value: 'Price (Rs)', angle: -90, position: 'insideLeft' }}
+                />
+                <Tooltip
                   cursor={{ strokeDasharray: '3 3' }}
-                  formatter={(value: any, name: string) => {
-                    if (name === "Price (LKR)") return [`LKR ${value}`, name];
-                    return [value, name];
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-background border border-border rounded-lg shadow-lg p-3">
+                          <p className="font-semibold">{data.name}</p>
+                          <p className="text-sm text-muted-foreground">{data.category}</p>
+                          <p className="text-sm font-medium">Rs {data.price?.toLocaleString()}</p>
+                        </div>
+                      );
+                    }
+                    return null;
                   }}
                 />
-                <Legend />
-                <Scatter name="All Products" data={priceBySubtype} fill="hsl(var(--accent))" />
+                <Scatter
+                  name="Products"
+                  data={priceByTypeWithCompetitor}
+                  fill="hsl(var(--primary))"
+                  fillOpacity={0.6}
+                />
               </ScatterChart>
             </ResponsiveContainer>
           </div>
 
-          {/* Price vs Competitor Clothing Type */}
+          {/* Price vs Clothing Subtype by Competitor */}
           <div className="bg-card rounded-xl border border-border shadow-md p-6">
-            <h3 className="text-xl font-semibold mb-6">Price vs Competitor Clothing Type</h3>
-            <ResponsiveContainer width="100%" height={400}>
-              <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+            <h3 className="text-xl font-semibold mb-6">Price vs Clothing Subtype by Competitor & Gender</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Each dot represents one product. Categories combine competitor, gender, and product type (e.g., FashionBug Men T-Shirt).
+            </p>
+            <ResponsiveContainer width="100%" height={500}>
+              <ScatterChart margin={{ top: 20, right: 20, bottom: 120, left: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis 
+                <XAxis
                   type="category"
-                  dataKey="typeName" 
-                  name="Type" 
+                  dataKey="category"
+                  name="Category"
                   className="text-sm"
                   allowDuplicatedCategory={false}
-                />
-                <YAxis type="number" dataKey="price" name="Price (LKR)" className="text-sm" />
-                <Tooltip 
-                  cursor={{ strokeDasharray: '3 3' }}
-                  formatter={(value: any, name: string) => {
-                    if (name === "Price (LKR)") return [`LKR ${value}`, name];
-                    return [value, name];
-                  }}
-                />
-                <Legend />
-                <Scatter name="FashionBug" data={fashionbugTypeData} fill="hsl(var(--primary))" />
-                <Scatter name="CoolPlanet" data={coolplanetTypeData} fill="hsl(var(--accent))" />
-              </ScatterChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Price vs Competitor Clothing Subtype */}
-          <div className="bg-card rounded-xl border border-border shadow-md p-6">
-            <h3 className="text-xl font-semibold mb-6">Price vs Competitor Clothing Subtype</h3>
-            <ResponsiveContainer width="100%" height={400}>
-              <ScatterChart margin={{ top: 20, right: 20, bottom: 60, left: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis 
-                  type="category"
-                  dataKey="subtypeName" 
-                  name="Subtype" 
-                  className="text-sm"
                   angle={-45}
                   textAnchor="end"
-                  height={60}
-                  allowDuplicatedCategory={false}
+                  height={100}
+                  interval={0}
                 />
-                <YAxis type="number" dataKey="price" name="Price (LKR)" className="text-sm" />
-                <Tooltip 
+                <YAxis
+                  type="number"
+                  dataKey="price"
+                  name="Price (Rs)"
+                  className="text-sm"
+                  label={{ value: 'Price (Rs)', angle: -90, position: 'insideLeft' }}
+                />
+                <Tooltip
                   cursor={{ strokeDasharray: '3 3' }}
-                  formatter={(value: any, name: string) => {
-                    if (name === "Price (LKR)") return [`LKR ${value}`, name];
-                    return [value, name];
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-background border border-border rounded-lg shadow-lg p-3">
+                          <p className="font-semibold">{data.name}</p>
+                          <p className="text-sm text-muted-foreground">{data.category}</p>
+                          <p className="text-sm font-medium">Rs {data.price?.toLocaleString()}</p>
+                        </div>
+                      );
+                    }
+                    return null;
                   }}
                 />
-                <Legend />
-                <Scatter name="FashionBug" data={fashionbugSubtypeData} fill="hsl(var(--primary))" />
-                <Scatter name="CoolPlanet" data={coolplanetSubtypeData} fill="hsl(var(--accent))" />
+                <Scatter
+                  name="Products"
+                  data={priceBySubtypeWithCompetitor}
+                  fill="hsl(var(--accent))"
+                  fillOpacity={0.6}
+                />
               </ScatterChart>
             </ResponsiveContainer>
           </div>

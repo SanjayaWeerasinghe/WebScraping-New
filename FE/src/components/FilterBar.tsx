@@ -6,12 +6,19 @@ export interface Filters {
   clothingSubtype: string;
 }
 
+export interface FilterOptions {
+  competitors: string[];
+  clothing_types: string[];
+  clothing_subtypes: string[];
+}
+
 interface FilterBarProps {
   filters: Filters;
   onFilterChange: (key: keyof Filters, value: string) => void;
+  filterOptions?: FilterOptions;
 }
 
-export const FilterBar = ({ filters, onFilterChange }: FilterBarProps) => {
+export const FilterBar = ({ filters, onFilterChange, filterOptions }: FilterBarProps) => {
   return (
     <div className="flex flex-wrap gap-4 p-6 bg-card rounded-xl border border-border shadow-sm">
       <div className="flex-1 min-w-[200px]">
@@ -24,8 +31,11 @@ export const FilterBar = ({ filters, onFilterChange }: FilterBarProps) => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Competitors</SelectItem>
-            <SelectItem value="fashionbug">FashionBug</SelectItem>
-            <SelectItem value="coolplanet">CoolPlanet</SelectItem>
+            {filterOptions?.competitors.map(comp => (
+              <SelectItem key={comp} value={comp}>
+                {comp === "fashionbug" ? "Fashion Bug" : "Cool Planet"}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -40,8 +50,11 @@ export const FilterBar = ({ filters, onFilterChange }: FilterBarProps) => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="men">Men</SelectItem>
-            <SelectItem value="women">Women</SelectItem>
+            {filterOptions?.clothing_types.map(type => (
+              <SelectItem key={type} value={type} className="capitalize">
+                {type}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -56,13 +69,11 @@ export const FilterBar = ({ filters, onFilterChange }: FilterBarProps) => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Subtypes</SelectItem>
-            <SelectItem value="shirt">Shirt</SelectItem>
-            <SelectItem value="tshirt">T-Shirt</SelectItem>
-            <SelectItem value="skirt">Skirt</SelectItem>
-            <SelectItem value="jean">Jean</SelectItem>
-            <SelectItem value="trouser">Trouser</SelectItem>
-            <SelectItem value="saree">Saree</SelectItem>
-            <SelectItem value="frock">Frock</SelectItem>
+            {filterOptions?.clothing_subtypes.map(subtype => (
+              <SelectItem key={subtype} value={subtype} className="capitalize">
+                {subtype}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>

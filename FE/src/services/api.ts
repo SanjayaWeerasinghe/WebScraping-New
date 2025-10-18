@@ -1,0 +1,142 @@
+/**
+ * API service for fetching data from the FastAPI backend
+ */
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+export interface ScrapedItem {
+  id: string;
+  competitor: "fashionbug" | "coolplanet";
+  clothingType: "men" | "women";
+  clothingSubtype: string;
+  name: string;
+  price: number;
+  colors: string[];  // Array of colors
+  dateScraped: string;
+}
+
+export interface PaginatedResponse {
+  items: ScrapedItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+export interface FilterOptions {
+  competitors: string[];
+  clothing_types: string[];
+  clothing_subtypes: string[];
+}
+
+export interface PriceHistoryItem {
+  product_id: number;
+  product_name: string;
+  product_url: string;
+  site: string;
+  prices: Array<{
+    date: string;
+    price: string;
+    price_numeric: number;
+  }>;
+}
+
+export interface ColorTrendItem {
+  color: string;
+  count: number;
+  site: string;
+  clothing_type: string;
+}
+
+export interface StatsResponse {
+  total_products: number;
+  total_sessions: number;
+  sites: Record<string, number>;
+  price_range: {
+    min: number;
+    max: number;
+    avg: number;
+  };
+}
+
+/**
+ * Fetch all products with optional filters
+ */
+export async function fetchProducts(params?: {
+  site?: string;
+  gender?: string;
+  clothing_type?: string;
+  limit?: number;
+}): Promise<ScrapedItem[]> {
+  const queryParams = new URLSearchParams();
+
+  if (params?.site) queryParams.append('site', params.site);
+  if (params?.gender) queryParams.append('gender', params.gender);
+  if (params?.clothing_type) queryParams.append('clothing_type', params.clothing_type);
+  if (params?.limit) queryParams.append('limit', params.limit.toString());
+
+  const url = `${API_BASE_URL}/api/products${queryParams.toString() ? `?${queryParams}` : ''}`;
+
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch products: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetch price history for a specific product
+ */
+export async function fetchPriceHistory(productId: number): Promise<PriceHistoryItem> {
+  const response = await fetch(`${API_BASE_URL}/api/price-history/${productId}`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch price history: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetch color trends with optional site filter
+ */
+export async function fetchColorTrends(site?: string): Promise<ColorTrendItem[]> {
+  const url = site
+    ? `${API_BASE_URL}/api/color-trends?site=${site}`
+    : `${API_BASE_URL}/api/color-trends`;
+
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch color trends: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetch database statistics
+ */
+export async function fetchStats(): Promise<StatsResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/stats`);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch stats: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Check if API is available
+ */
+export async function healthCheck(): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/`);
+    return response.ok;
+  } catch {
+    return false;
+  }
+}

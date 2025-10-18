@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { ArrowRight, Database, TrendingUp, Palette } from "lucide-react";
+import { ArrowRight, Database, TrendingUp, Palette, Play } from "lucide-react";
 import heroBg from "@/assets/hero-bg.jpg";
+import { ScrapingProgressModal } from "@/components/ScrapingProgressModal";
 
 const Home = () => {
+  const [isScrapingModalOpen, setIsScrapingModalOpen] = useState(false);
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -33,9 +36,17 @@ const Home = () => {
             </p>
             
             <div className="flex gap-4 justify-center pt-6">
+              <Button
+                size="lg"
+                className="gap-2 shadow-lg hover:shadow-xl transition-all"
+                onClick={() => setIsScrapingModalOpen(true)}
+              >
+                <Play className="w-5 h-5" />
+                Run Scraping
+              </Button>
               <Link to="/scraping">
                 <Button size="lg" variant="secondary" className="gap-2 shadow-lg hover:shadow-xl transition-all">
-                  Start Exploring
+                  View Data
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </Link>
@@ -104,6 +115,12 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      {/* Scraping Progress Modal */}
+      <ScrapingProgressModal
+        isOpen={isScrapingModalOpen}
+        onClose={() => setIsScrapingModalOpen(false)}
+      />
     </div>
   );
 };

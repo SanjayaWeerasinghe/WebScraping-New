@@ -5,12 +5,16 @@ Serves data from SQLite database to the React frontend.
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Optional
 import sqlite3
 import json
 from pathlib import Path
 from datetime import datetime
+import asyncio
+import sys
+import os
 
 
 app = FastAPI(title="Fashion Scraper API", version="1.0.0")
@@ -731,6 +735,58 @@ def get_color_price_trends(
 
     conn.close()
     return data
+
+
+@app.post("/api/run-scraping")
+async def run_scraping():
+    """
+    Run the complete scraping pipeline and stream progress updates via Server-Sent Events.
+    """
+    async def event_stream():
+        """Generate Server-Sent Events for scraping progress."""
+        import subprocess
+        from pathlib import Path
+
+        # Send initial message
+        yield f"data: {json.dumps({'step': 'start', 'message': 'Starting scraping pipeline...', 'status': 'info'})}\n\n"
+        await asyncio.sleep(0.1)
+
+        # Path to the pipeline script
+        script_path = Path(__file__).parent / "run_scraping_pipeline.py"
+
+        try:
+            # Run the pipeline script
+            process = await asyncio.create_subprocess_exec(
+                sys.executable, str(script_path),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+                cwd=str(Path(__file__).parent)
+            )
+
+            # Stream output line by line
+            while True:
+                line = await process.stdout.readline()
+                if not line:
+                    break
+
+                line_text = line.decode().strip()
+                if line_text:
+                    # Send each line as an SSE event
+                    yield f"data: {json.dumps({'step': 'progress', 'message': line_text, 'status': 'info'})}\n\n"
+                    await asyncio.sleep(0.01)  # Small delay to prevent overwhelming the client
+
+            # Wait for process to complete
+            await process.wait()
+
+            if process.returncode == 0:
+                yield f"data: {json.dumps({'step': 'complete', 'message': 'Scraping pipeline completed successfully!', 'status': 'success'})}\n\n"
+            else:
+                yield f"data: {json.dumps({'step': 'error', 'message': f'Pipeline failed with exit code {process.returncode}', 'status': 'error'})}\n\n"
+
+        except Exception as e:
+            yield f"data: {json.dumps({'step': 'error', 'message': f'Error: {str(e)}', 'status': 'error'})}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @app.get("/api/stats", response_model=StatsResponse)

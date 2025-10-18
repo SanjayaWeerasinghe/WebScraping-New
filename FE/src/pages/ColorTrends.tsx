@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FilterBar, Filters } from "@/components/FilterBar";
-import { fetchProducts, fetchFilterOptions } from "@/services/api";
+import { fetchProducts, fetchFilterOptions, fetchColorPriceTrends } from "@/services/api";
 import { filterData } from "@/utils/filterData";
-import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from "recharts";
+import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, LineChart, Line } from "recharts";
 
 // Categorize specific color shades into base color groups
 const categorizeColor = (colorName: string): string => {
@@ -137,6 +137,8 @@ const ColorTrends = () => {
     competitor: "all",
     clothingType: "all",
     clothingSubtype: "all",
+    startDate: "",
+    endDate: "",
   });
 
   // Fetch filter options
@@ -149,6 +151,17 @@ const ColorTrends = () => {
   const { data: productsData, isLoading, error } = useQuery({
     queryKey: ['products-color-trends'],
     queryFn: () => fetchProducts({ page: 1, page_size: 10000 }),
+  });
+
+  // Fetch color price trends for price evolution analysis
+  const { data: colorPriceTrendsData } = useQuery({
+    queryKey: ['color-price-trends', filters.competitor, filters.clothingType, filters.startDate, filters.endDate],
+    queryFn: () => fetchColorPriceTrends({
+      site: filters.competitor !== "all" ? filters.competitor : undefined,
+      gender: filters.clothingType !== "all" ? filters.clothingType : undefined,
+      start_date: filters.startDate || undefined,
+      end_date: filters.endDate || undefined,
+    }),
   });
 
   const handleFilterChange = (key: keyof Filters, value: string) => {
@@ -184,74 +197,6 @@ const ColorTrends = () => {
   });
 
   const filteredData = filterData(productsWithTopColor, filters);
-
-  // Create category mappings
-  const typeMapping = { 'men': 0, 'women': 1 };
-  const subtypeMapping = { 'shirt': 0, 'tshirt': 1, 'skirt': 2, 'jean': 3, 'trouser': 4, 'saree': 5, 'frock': 6 };
-  
-  // Get unique colors and create mapping
-  const uniqueColors = Array.from(new Set(filteredData.map(item => item.color)));
-  const colorMapping = Object.fromEntries(uniqueColors.map((color, index) => [color, index]));
-
-  // Color vs Clothing Type - each item gets its own dot
-  const colorByType = filteredData.map((item) => ({
-    typeValue: typeMapping[item.clothingType],
-    typeName: item.clothingType,
-    colorValue: colorMapping[item.color],
-    colorName: item.color,
-    name: item.name,
-  }));
-
-  // Color vs Clothing Subtype - each item gets its own dot
-  const colorBySubtype = filteredData.map((item) => ({
-    subtypeValue: subtypeMapping[item.clothingSubtype],
-    subtypeName: item.clothingSubtype,
-    colorValue: colorMapping[item.color],
-    colorName: item.color,
-    name: item.name,
-  }));
-
-  // Color vs Competitor Type
-  const fashionbugColorType = filteredData
-    .filter(item => item.competitor === "fashionbug")
-    .map((item) => ({ 
-      typeValue: typeMapping[item.clothingType],
-      typeName: item.clothingType,
-      colorValue: colorMapping[item.color],
-      colorName: item.color,
-      name: item.name,
-    }));
-  
-  const coolplanetColorType = filteredData
-    .filter(item => item.competitor === "coolplanet")
-    .map((item) => ({ 
-      typeValue: typeMapping[item.clothingType],
-      typeName: item.clothingType,
-      colorValue: colorMapping[item.color],
-      colorName: item.color,
-      name: item.name,
-    }));
-
-  // Color vs Competitor Subtype
-  const fashionbugColorSubtype = filteredData
-    .filter(item => item.competitor === "fashionbug")
-    .map((item) => ({ 
-      subtypeValue: subtypeMapping[item.clothingSubtype],
-      subtypeName: item.clothingSubtype,
-      colorValue: colorMapping[item.color],
-      colorName: item.color,
-      name: item.name,
-    }));
-  
-  const coolplanetColorSubtype = filteredData
-    .filter(item => item.competitor === "coolplanet")
-    .map((item) => ({ 
-      subtypeValue: subtypeMapping[item.clothingSubtype],
-      subtypeName: item.clothingSubtype,
-      colorValue: colorMapping[item.color],
-      colorName: item.color,
-      name: item.name,
-    }));
 
   // Color Distribution Pie Chart
   const colorCounts = filteredData.reduce((acc, item) => {
@@ -310,20 +255,6 @@ const ColorTrends = () => {
     return COLOR_MAP[colorName] || "#A8A29E";
   };
 
-  // Custom tick formatters
-  const typeTickFormatter = (value: number) => {
-    return value === 0 ? 'Men' : 'Women';
-  };
-
-  const subtypeTickFormatter = (value: number) => {
-    const subtypes = ['Shirt', 'T-Shirt', 'Skirt', 'Jean', 'Trouser', 'Saree', 'Frock'];
-    return subtypes[value] || '';
-  };
-
-  const colorTickFormatter = (value: number) => {
-    return uniqueColors[value] || '';
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen py-8 flex items-center justify-center">
@@ -360,6 +291,154 @@ const ColorTrends = () => {
         <FilterBar filters={filters} onFilterChange={handleFilterChange} filterOptions={filterOptions} />
 
         <div className="grid gap-8">
+          {/* Color Price Evolution Over Time */}
+          <div className="bg-card rounded-xl border border-border shadow-md p-6">
+            <h3 className="text-xl font-semibold mb-2">Color Price Evolution</h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              Track how average prices of each color category change over time. Rising lines indicate trending colors.
+            </p>
+            {colorPriceTrendsData && colorPriceTrendsData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={500}>
+                <LineChart
+                  data={colorPriceTrendsData}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis
+                    dataKey="date"
+                    className="text-sm"
+                    label={{ value: 'Date', position: 'insideBottom', offset: -10 }}
+                  />
+                  <YAxis
+                    className="text-sm"
+                    label={{ value: 'Average Price (Rs)', angle: -90, position: 'insideLeft' }}
+                  />
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-background border border-border rounded-lg shadow-lg p-3">
+                            <p className="font-semibold text-sm mb-2">{label}</p>
+                            {payload
+                              .sort((a, b) => (b.value as number) - (a.value as number))
+                              .map((entry, index) => (
+                                <p key={index} className="text-xs" style={{ color: entry.color }}>
+                                  {entry.name}: Rs {(entry.value as number).toFixed(2)}
+                                </p>
+                              ))}
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Legend />
+                  {/* Render a line for each color category */}
+                  <Line
+                    type="monotone"
+                    dataKey="Black"
+                    stroke={COLOR_MAP["Black"]}
+                    strokeWidth={2}
+                    dot={{ fill: COLOR_MAP["Black"], r: 3 }}
+                    connectNulls
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="White"
+                    stroke="#9CA3AF"
+                    strokeWidth={2}
+                    dot={{ fill: "#9CA3AF", r: 3 }}
+                    connectNulls
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="Gray"
+                    stroke={COLOR_MAP["Gray"]}
+                    strokeWidth={2}
+                    dot={{ fill: COLOR_MAP["Gray"], r: 3 }}
+                    connectNulls
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="Red"
+                    stroke={COLOR_MAP["Red"]}
+                    strokeWidth={2}
+                    dot={{ fill: COLOR_MAP["Red"], r: 3 }}
+                    connectNulls
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="Blue"
+                    stroke={COLOR_MAP["Blue"]}
+                    strokeWidth={2}
+                    dot={{ fill: COLOR_MAP["Blue"], r: 3 }}
+                    connectNulls
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="Green"
+                    stroke={COLOR_MAP["Green"]}
+                    strokeWidth={2}
+                    dot={{ fill: COLOR_MAP["Green"], r: 3 }}
+                    connectNulls
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="Yellow"
+                    stroke={COLOR_MAP["Yellow"]}
+                    strokeWidth={2}
+                    dot={{ fill: COLOR_MAP["Yellow"], r: 3 }}
+                    connectNulls
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="Orange"
+                    stroke={COLOR_MAP["Orange"]}
+                    strokeWidth={2}
+                    dot={{ fill: COLOR_MAP["Orange"], r: 3 }}
+                    connectNulls
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="Purple"
+                    stroke={COLOR_MAP["Purple"]}
+                    strokeWidth={2}
+                    dot={{ fill: COLOR_MAP["Purple"], r: 3 }}
+                    connectNulls
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="Pink"
+                    stroke={COLOR_MAP["Pink"]}
+                    strokeWidth={2}
+                    dot={{ fill: COLOR_MAP["Pink"], r: 3 }}
+                    connectNulls
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="Brown"
+                    stroke={COLOR_MAP["Brown"]}
+                    strokeWidth={2}
+                    dot={{ fill: COLOR_MAP["Brown"], r: 3 }}
+                    connectNulls
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="Other"
+                    stroke={COLOR_MAP["Other"]}
+                    strokeWidth={2}
+                    dot={{ fill: COLOR_MAP["Other"], r: 3 }}
+                    connectNulls
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[500px] flex items-center justify-center text-muted-foreground">
+                <p>No price trend data available</p>
+              </div>
+            )}
+          </div>
+
           {/* Most Used Colors Pie Chart */}
           <div className="bg-card rounded-xl border border-border shadow-md p-6">
             <h3 className="text-xl font-semibold mb-6">Most Used Colors</h3>
@@ -433,121 +512,6 @@ const ColorTrends = () => {
             </ResponsiveContainer>
           </div>
 
-          {/* Color vs Clothing Type */}
-          <div className="bg-card rounded-xl border border-border shadow-md p-6">
-            <h3 className="text-xl font-semibold mb-6">Color vs Clothing Type</h3>
-            <ResponsiveContainer width="100%" height={400}>
-              <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 80 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis 
-                  type="category"
-                  dataKey="typeName" 
-                  name="Type" 
-                  className="text-sm"
-                  allowDuplicatedCategory={false}
-                />
-                <YAxis 
-                  type="category"
-                  dataKey="colorName" 
-                  name="Color" 
-                  className="text-sm"
-                  allowDuplicatedCategory={false}
-                />
-                <Tooltip cursor={{ strokeDasharray: '3 3' }} />
-                <Legend />
-                <Scatter name="All Products" data={colorByType} fill="hsl(var(--primary))" />
-              </ScatterChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Color vs Clothing Subtype */}
-          <div className="bg-card rounded-xl border border-border shadow-md p-6">
-            <h3 className="text-xl font-semibold mb-6">Color vs Clothing Subtype</h3>
-            <ResponsiveContainer width="100%" height={400}>
-              <ScatterChart margin={{ top: 20, right: 20, bottom: 60, left: 80 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis 
-                  type="category"
-                  dataKey="subtypeName" 
-                  name="Subtype" 
-                  className="text-sm"
-                  angle={-45}
-                  textAnchor="end"
-                  height={60}
-                  allowDuplicatedCategory={false}
-                />
-                <YAxis 
-                  type="category"
-                  dataKey="colorName" 
-                  name="Color" 
-                  className="text-sm"
-                  allowDuplicatedCategory={false}
-                />
-                <Tooltip cursor={{ strokeDasharray: '3 3' }} />
-                <Legend />
-                <Scatter name="All Products" data={colorBySubtype} fill="hsl(var(--accent))" />
-              </ScatterChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Color vs Competitor Clothing Type */}
-          <div className="bg-card rounded-xl border border-border shadow-md p-6">
-            <h3 className="text-xl font-semibold mb-6">Color vs Competitor Clothing Type</h3>
-            <ResponsiveContainer width="100%" height={400}>
-              <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 80 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis 
-                  type="category"
-                  dataKey="typeName" 
-                  name="Type" 
-                  className="text-sm"
-                  allowDuplicatedCategory={false}
-                />
-                <YAxis 
-                  type="category"
-                  dataKey="colorName" 
-                  name="Color" 
-                  className="text-sm"
-                  allowDuplicatedCategory={false}
-                />
-                <Tooltip cursor={{ strokeDasharray: '3 3' }} />
-                <Legend />
-                <Scatter name="FashionBug" data={fashionbugColorType} fill="hsl(var(--primary))" />
-                <Scatter name="CoolPlanet" data={coolplanetColorType} fill="hsl(var(--accent))" />
-              </ScatterChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Color vs Competitor Clothing Subtype */}
-          <div className="bg-card rounded-xl border border-border shadow-md p-6">
-            <h3 className="text-xl font-semibold mb-6">Color vs Competitor Clothing Subtype</h3>
-            <ResponsiveContainer width="100%" height={400}>
-              <ScatterChart margin={{ top: 20, right: 20, bottom: 60, left: 80 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis 
-                  type="category"
-                  dataKey="subtypeName" 
-                  name="Subtype" 
-                  className="text-sm"
-                  angle={-45}
-                  textAnchor="end"
-                  height={60}
-                  allowDuplicatedCategory={false}
-                />
-                <YAxis 
-                  type="category"
-                  dataKey="colorName" 
-                  name="Color" 
-                  className="text-sm"
-                  allowDuplicatedCategory={false}
-                />
-                <Tooltip cursor={{ strokeDasharray: '3 3' }} />
-                <Legend />
-                <Scatter name="FashionBug" data={fashionbugColorSubtype} fill="hsl(var(--primary))" />
-                <Scatter name="CoolPlanet" data={coolplanetColorSubtype} fill="hsl(var(--accent))" />
-              </ScatterChart>
-            </ResponsiveContainer>
-          </div>
         </div>
       </div>
     </div>

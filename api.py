@@ -143,7 +143,9 @@ def get_products(
     gender: Optional[str] = None,
     clothing_type: Optional[str] = None,
     page: int = 1,
-    page_size: int = 10
+    page_size: int = 10,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
 ):
     """
     Get all products with latest price and color data (paginated).
@@ -185,6 +187,14 @@ def get_products(
     if clothing_type:
         base_query += " AND LOWER(p.clothing_type) LIKE ?"
         params.append(f"%{clothing_type.lower()}%")
+
+    if start_date:
+        base_query += " AND DATE(ph.scraped_at) >= ?"
+        params.append(start_date)
+
+    if end_date:
+        base_query += " AND DATE(ph.scraped_at) <= ?"
+        params.append(end_date)
 
     # Get total count
     count_query = f"SELECT COUNT(DISTINCT p.id) {base_query}"
@@ -405,6 +415,303 @@ def get_filter_options():
         clothing_types=sorted(clothing_types),
         clothing_subtypes=sorted(clothing_subtypes)
     )
+
+
+@app.get("/api/price-trends")
+def get_price_trends(
+    site: Optional[str] = None,
+    gender: Optional[str] = None,
+    clothing_type: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+):
+    """Get price trends over time."""
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Build query with filters
+    query = """
+        SELECT
+            DATE(ph.scraped_at) as date,
+            p.site,
+            p.gender,
+            AVG(ph.price_numeric) as avg_price,
+            MIN(ph.price_numeric) as min_price,
+            MAX(ph.price_numeric) as max_price,
+            COUNT(*) as product_count
+        FROM price_history ph
+        JOIN products p ON ph.product_id = p.id
+        WHERE p.is_active = 1
+    """
+
+    params = []
+
+    if site:
+        if site.lower() == "fashionbug":
+            query += " AND (LOWER(p.site) LIKE '%fashion%' OR LOWER(p.site) LIKE '%bug%')"
+        elif site.lower() == "coolplanet":
+            query += " AND (LOWER(p.site) LIKE '%cool%' OR LOWER(p.site) LIKE '%planet%')"
+
+    if gender:
+        query += " AND LOWER(p.gender) = ?"
+        params.append(gender.lower())
+
+    if clothing_type:
+        query += " AND LOWER(p.clothing_type) LIKE ?"
+        params.append(f"%{clothing_type.lower()}%")
+
+    if start_date:
+        query += " AND DATE(ph.scraped_at) >= ?"
+        params.append(start_date)
+
+    if end_date:
+        query += " AND DATE(ph.scraped_at) <= ?"
+        params.append(end_date)
+
+    query += """
+        GROUP BY DATE(ph.scraped_at), p.site, p.gender
+        ORDER BY DATE(ph.scraped_at), p.site, p.gender
+    """
+
+    cursor.execute(query, params)
+    results = cursor.fetchall()
+
+    data = [
+        {
+            "date": row['date'],
+            "site": map_site_name(row['site']),
+            "gender": row['gender'],
+            "avg_price": round(row['avg_price'], 2) if row['avg_price'] else 0,
+            "min_price": round(row['min_price'], 2) if row['min_price'] else 0,
+            "max_price": round(row['max_price'], 2) if row['max_price'] else 0,
+            "product_count": row['product_count']
+        }
+        for row in results
+    ]
+
+    conn.close()
+    return data
+
+
+@app.get("/api/product-timeline")
+def get_product_timeline(
+    site: Optional[str] = None,
+    gender: Optional[str] = None,
+    clothing_type: Optional[str] = None
+):
+    """Get product count by date first seen for launch timeline."""
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Build query with filters - count products by when they were first seen
+    query = """
+        SELECT
+            DATE(p.first_seen) as date,
+            p.site,
+            p.gender,
+            COUNT(DISTINCT p.id) as product_count
+        FROM products p
+        WHERE p.is_active = 1
+    """
+
+    params = []
+
+    if site:
+        if site.lower() == "fashionbug":
+            query += " AND (LOWER(p.site) LIKE '%fashion%' OR LOWER(p.site) LIKE '%bug%')"
+        elif site.lower() == "coolplanet":
+            query += " AND (LOWER(p.site) LIKE '%cool%' OR LOWER(p.site) LIKE '%planet%')"
+
+    if gender:
+        query += " AND LOWER(p.gender) = ?"
+        params.append(gender.lower())
+
+    if clothing_type:
+        query += " AND LOWER(p.clothing_type) LIKE ?"
+        params.append(f"%{clothing_type.lower()}%")
+
+    query += """
+        GROUP BY DATE(p.first_seen), p.site, p.gender
+        ORDER BY DATE(p.first_seen) ASC
+    """
+
+    cursor.execute(query, params)
+    results = cursor.fetchall()
+
+    # Group by date and aggregate counts
+    timeline_data = {}
+    for row in results:
+        date = row['date']
+        if date not in timeline_data:
+            timeline_data[date] = {
+                'date': date,
+                'total': 0,
+                'by_site_gender': {}
+            }
+
+        site_name = map_site_name(row['site']) if row['site'] else None
+        gender_val = row['gender']
+
+        if site_name and gender_val:
+            key = f"{site_name}_{gender_val}"
+            timeline_data[date]['by_site_gender'][key] = timeline_data[date]['by_site_gender'].get(key, 0) + row['product_count']
+            timeline_data[date]['total'] += row['product_count']
+
+    # Convert to list format for the chart
+    data = []
+    for date, info in sorted(timeline_data.items()):
+        item = {
+            'date': date,
+            'total': info['total']
+        }
+        # Add individual site/gender counts as separate keys
+        for key, count in info['by_site_gender'].items():
+            parts = key.split('_')
+            if len(parts) == 2:
+                site, gender_val = parts
+                # Map site names to match frontend format
+                site_formatted = "FashionBug" if site == "fashionbug" else "CoolPlanet"
+                gender_formatted = gender_val.capitalize()
+                formatted_key = f"{site_formatted} {gender_formatted}"
+                item[formatted_key] = count
+        data.append(item)
+
+    conn.close()
+    return data
+
+
+@app.get("/api/color-price-trends")
+def get_color_price_trends(
+    site: Optional[str] = None,
+    gender: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+):
+    """Get average price trends for each color category over time."""
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Build query to get colors and prices over time
+    query = """
+        SELECT
+            DATE(ph.scraped_at) as date,
+            ch.colors,
+            p.site,
+            p.gender,
+            ph.price_numeric
+        FROM products p
+        JOIN price_history ph ON p.id = ph.product_id
+        JOIN color_history ch ON p.id = ch.product_id
+        WHERE p.is_active = 1
+          AND DATE(ph.scraped_at) = DATE(ch.scraped_at)
+    """
+
+    params = []
+
+    if site:
+        if site.lower() == "fashionbug":
+            query += " AND (LOWER(p.site) LIKE '%fashion%' OR LOWER(p.site) LIKE '%bug%')"
+        elif site.lower() == "coolplanet":
+            query += " AND (LOWER(p.site) LIKE '%cool%' OR LOWER(p.site) LIKE '%planet%')"
+
+    if gender:
+        query += " AND LOWER(p.gender) = ?"
+        params.append(gender.lower())
+
+    if start_date:
+        query += " AND DATE(ph.scraped_at) >= ?"
+        params.append(start_date)
+
+    if end_date:
+        query += " AND DATE(ph.scraped_at) <= ?"
+        params.append(end_date)
+
+    query += " ORDER BY DATE(ph.scraped_at)"
+
+    cursor.execute(query, params)
+    results = cursor.fetchall()
+
+    # Color categorization function (same as frontend)
+    def categorize_color(color_name):
+        if not color_name:
+            return "Other"
+        color = color_name.lower()
+
+        # Black shades
+        if any(x in color for x in ["black", "ebony", "jet", "onyx", "coal", "raisin", "licorice"]):
+            return "Black"
+        # White shades
+        elif any(x in color for x in ["white", "ivory", "cream", "beige", "eggshell", "ghost"]):
+            return "White"
+        # Gray shades
+        elif any(x in color for x in ["gray", "grey", "silver", "ash", "slate", "charcoal", "grullo", "taupe"]):
+            return "Gray"
+        # Red shades
+        elif any(x in color for x in ["red", "crimson", "scarlet", "ruby", "burgundy", "maroon", "cardinal", "brick"]):
+            return "Red"
+        # Blue shades
+        elif any(x in color for x in ["blue", "navy", "azure", "cobalt", "sapphire", "indigo", "cerulean", "prussian", "yinmn"]):
+            return "Blue"
+        # Green shades
+        elif any(x in color for x in ["green", "olive", "emerald", "jade", "lime", "forest", "mint", "sage"]):
+            return "Green"
+        # Yellow shades
+        elif any(x in color for x in ["yellow", "gold", "amber", "lemon", "canary", "mustard", "saffron"]):
+            return "Yellow"
+        # Orange shades
+        elif any(x in color for x in ["orange", "coral", "peach", "tangerine", "apricot", "rust"]):
+            return "Orange"
+        # Purple shades
+        elif any(x in color for x in ["purple", "violet", "lavender", "plum", "mauve", "lilac", "magenta", "orchid"]):
+            return "Purple"
+        # Pink shades
+        elif any(x in color for x in ["pink", "rose", "salmon", "fuchsia", "blush"]):
+            return "Pink"
+        # Brown shades
+        elif any(x in color for x in ["brown", "tan", "khaki", "chocolate", "coffee", "mocha", "umber", "liver", "sepia"]):
+            return "Brown"
+        else:
+            return "Other"
+
+    # Aggregate by date and color category
+    color_price_by_date = {}
+
+    for row in results:
+        date = row['date']
+        price = row['price_numeric']
+
+        if row['colors']:
+            try:
+                colors = json.loads(row['colors'])
+                # Use first/top color (or second for FashionBug tops as per previous logic)
+                if colors:
+                    color = colors[0]
+                    category = categorize_color(color)
+
+                    if date not in color_price_by_date:
+                        color_price_by_date[date] = {}
+
+                    if category not in color_price_by_date[date]:
+                        color_price_by_date[date][category] = {'prices': [], 'count': 0}
+
+                    color_price_by_date[date][category]['prices'].append(price)
+                    color_price_by_date[date][category]['count'] += 1
+            except:
+                continue
+
+    # Calculate averages and format for response
+    data = []
+    for date, categories in sorted(color_price_by_date.items()):
+        date_entry = {'date': date}
+        for category, info in categories.items():
+            if info['prices']:
+                avg_price = sum(info['prices']) / len(info['prices'])
+                date_entry[category] = round(avg_price, 2)
+                date_entry[f"{category}_count"] = info['count']
+        data.append(date_entry)
+
+    conn.close()
+    return data
 
 
 @app.get("/api/stats", response_model=StatsResponse)

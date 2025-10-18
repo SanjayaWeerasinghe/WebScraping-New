@@ -5,12 +5,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 const WebScraping = () => {
   const [filters, setFilters] = useState({
     competitor: "all",
     clothingType: "all",
     clothingSubtype: "all",
+    startDate: "",
+    endDate: "",
   });
   const [page, setPage] = useState(1);
   const pageSize = 10;
@@ -30,6 +33,8 @@ const WebScraping = () => {
       clothing_type: filters.clothingSubtype !== "all" ? filters.clothingSubtype : undefined,
       page,
       page_size: pageSize,
+      start_date: filters.startDate || undefined,
+      end_date: filters.endDate || undefined,
     }),
   });
 
@@ -82,7 +87,7 @@ const WebScraping = () => {
 
         {/* Filters */}
         <div className="bg-card rounded-xl border border-border shadow-md p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {/* Competitor Filter */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Competitor (Site)</label>
@@ -129,6 +134,28 @@ const WebScraping = () => {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Start Date Filter */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Start Date</label>
+              <Input
+                type="date"
+                value={filters.startDate}
+                onChange={(e) => handleFilterChange("startDate", e.target.value)}
+                className="bg-background"
+              />
+            </div>
+
+            {/* End Date Filter */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">End Date</label>
+              <Input
+                type="date"
+                value={filters.endDate}
+                onChange={(e) => handleFilterChange("endDate", e.target.value)}
+                className="bg-background"
+              />
             </div>
           </div>
         </div>

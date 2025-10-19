@@ -1,0 +1,47 @@
+# Node modules
+FE/node_modules
+FE/dist
+FE/.vite
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+.venv
+venv
+env
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Test and development
+*.log
+.pytest_cache
+.coverage
+htmlcov
+
+# Temporary folders
+FashionColor-0/
+WebScraping_Essential.zip
+test_*.py
+.env

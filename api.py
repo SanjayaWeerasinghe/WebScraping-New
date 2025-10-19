@@ -5,7 +5,8 @@ Serves data from SQLite database to the React frontend.
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Optional
 import sqlite3
@@ -132,8 +133,8 @@ def map_clothing_subtype(clothing_type: str) -> str:
         return "tshirt"  # Default
 
 
-@app.get("/")
-def read_root():
+@app.get("/health")
+def health_check():
     """Health check endpoint."""
     return {
         "message": "Fashion Scraper API",
@@ -849,6 +850,26 @@ def get_stats():
             "avg": price_data['avg_price'] or 0
         }
     )
+
+
+# Mount static files for frontend (if directory exists)
+STATIC_DIR = Path(__file__).parent / "static"
+if STATIC_DIR.exists():
+    # Serve static assets (CSS, JS, images)
+    app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
+
+    # Serve index.html for all other routes (SPA)
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        """Serve the React SPA for all non-API routes."""
+        # Don't intercept API routes
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not found")
+
+        index_file = STATIC_DIR / "index.html"
+        if index_file.exists():
+            return FileResponse(index_file)
+        raise HTTPException(status_code=404, detail="Frontend not found")
 
 
 if __name__ == "__main__":

@@ -1,364 +1,327 @@
-# Fashion E-commerce Web Scraper
+# Fashion Scraper Application
 
-A robust web scraper for Sri Lankan fashion e-commerce websites using **Patchwright** (stealth Playwright) with automatic pagination and intelligent product data extraction.
+A comprehensive web scraping and analytics application for tracking fashion product data, prices, and color trends from competitor websites.
 
 ## Overview
 
-This scraper collects comprehensive product data from Fashion Bug and Cool Planet, organizing products by gender categories (Men/Women) with automatic clothing type detection and image URL extraction.
+This application combines web scraping, data processing, and analytics visualization to provide competitive intelligence for Sri Lankan fashion e-commerce. It tracks products from Fashion Bug and Cool Planet with automated scraping pipelines and real-time progress monitoring.
 
-## ✨ Features
+## Features
 
-- **Stealth Scraping** - Uses Patchwright to avoid bot detection
-- **Automatic Pagination** - Navigates through multiple pages automatically (up to 10 pages per category)
-- **Smart Image Extraction** - Handles lazy-loaded images and filters out payment gateway logos
-- **Clothing Type Detection** - Automatically identifies shirts, trousers, tops, dresses, skirts, sarees, etc.
-- **Category Organization** - Separates products by Men's and Women's categories
-- **Multiple Output Formats** - Generates both JSON and CSV files
-- **Robust Selectors** - Uses multiple fallback selectors for reliable data extraction
+- **Stealth Web Scraping** - Uses Patchwright to avoid bot detection
+- **Automated Pipeline** - Complete workflow from scraping to database import
+- **Real-time Progress Tracking** - Live console output with step-by-step status
+- **Price & Color Analytics** - Track trends over time with interactive charts
+- **Product Timeline** - Monitor product launches and availability
+- **REST API** - FastAPI backend with comprehensive endpoints
+- **React Dashboard** - Modern UI with filtering and data visualization
+- **Docker Support** - Single-command deployment with all dependencies
 
-## 🎯 Supported Sites
-
-- **Fashion Bug** (https://fashionbug.lk/)
-- **Cool Planet** (https://coolplanet.lk/)
-
-## 📦 Installation
+## Quick Start with Docker
 
 ### Prerequisites
 
-- Python 3.8 or higher
-- pip (Python package manager)
+- Docker installed on your system
+- 4GB+ RAM available
+- Port 8000 available
 
-### Step 1: Install Python Dependencies
+### Build the Docker Image
 
+```bash
+docker build -t fashion-scraper .
+```
+
+This will:
+- Build the React frontend
+- Install Python dependencies
+- Package everything into a single image with the database
+
+### Run the Application
+
+```bash
+docker run -p 8000:8000 fashion-scraper
+```
+
+### Access the Application
+
+Once the container is running:
+
+- **Frontend Dashboard**: http://localhost:8000
+- **API Documentation**: http://localhost:8000/docs
+- **API Health Check**: http://localhost:8000/health
+
+## Manual Setup (Without Docker)
+
+### Backend Setup
+
+1. Install Python dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-**Dependencies:**
-- `patchright` - Stealth version of Playwright
-- `playwright` - Browser automation
-- `pandas` - Data processing and CSV export
-- `python-dotenv` - Environment configuration (optional)
-
-### Step 2: Install Playwright Browsers
-
-After installing the packages, install the Chromium browser:
-
+2. Install Playwright browsers:
 ```bash
 playwright install chromium
 ```
 
-If you encounter issues, force reinstall:
-
+3. Start the FastAPI server:
 ```bash
-playwright install --force chromium
+python api.py
 ```
 
-## 🚀 Usage
+The API will be available at http://localhost:8000
 
-### Quick Start - Scrape Both Sites
+### Frontend Setup
 
-Run the main category scraper to scrape both Fashion Bug and Cool Planet:
-
+1. Navigate to the frontend directory:
 ```bash
-python scraper_categories.py
+cd FE
 ```
 
-This will:
-- Scrape Women's and Men's categories from both sites
-- Navigate through pagination (up to 10 pages per category)
-- Extract product names, prices, images, URLs, and clothing types
-- Save results to `output/` directory
-
-### Scrape Fashion Bug Only
-
+2. Install dependencies:
 ```bash
-python test_fashionbug.py
+npm install
 ```
 
-### Test Individual Sites
-
-For debugging or testing:
-
+3. Start the development server:
 ```bash
-python test_scraper.py
+npm run dev
 ```
 
-## 📊 Output Files
+The frontend will be available at http://localhost:8080
 
-The scraper generates category-specific files in the `output/` directory:
+## Running the Scraper
 
-### Fashion Bug
-- `fashion_bug_women.json` - Women's products (JSON)
-- `fashion_bug_women.csv` - Women's products (CSV)
-- `fashion_bug_men.json` - Men's products (JSON)
-- `fashion_bug_men.csv` - Men's products (CSV)
+### Via Web Interface
 
-### Cool Planet
-- `cool_planet_women.json` - Women's products (JSON)
-- `cool_planet_women.csv` - Women's products (CSV)
-- `cool_planet_men.json` - Men's products (JSON)
-- `cool_planet_men.csv` - Men's products (CSV)
+1. Navigate to the landing page (http://localhost:8000)
+2. Click the "Run Scraping" button
+3. Monitor progress in the popup modal with real-time console output
 
-### Summary Report
+### Via Command Line
 
-Generate a summary of scraped data:
-
+Run the complete pipeline:
 ```bash
-python scraping_summary.py
+python run_scraping_pipeline.py
 ```
 
-## 📋 Data Structure
-
-Each product includes the following fields:
-
-```json
-{
-  "name": "AMANI PRINTED SHIRT",
-  "main_category": "Women",
-  "clothing_type": "Shirt",
-  "price": "Rs 2,890.00",
-  "original_price": null,
-  "colors": [],
-  "sizes": [],
-  "brand": null,
-  "image_url": "https://fashionbug.lk/cdn/shop/files/...",
-  "product_url": "https://fashionbug.lk/products/...",
-  "availability": null,
-  "description": null,
-  "site_name": "Fashion Bug",
-  "scraped_at": "2025-10-10T00:35:13.581582"
-}
+Or run individual steps:
+```bash
+python scraper_categories.py    # Step 1: Web scraping
+python clean_prices.py           # Step 2: Price cleaning
+python extract_colors.py         # Step 3: Color extraction
+python import_to_database.py     # Step 4: Database import
 ```
 
-## 🎨 Clothing Types Detected
-
-The scraper automatically identifies these clothing types from product names:
-
-- **Shirts** - Formal shirts, casual shirts
-- **T-Shirts** - T-shirts, tees
-- **Blouses** - Women's blouses
-- **Tops** - Casual tops, tube tops
-- **Dresses** - Dresses, mini dresses
-- **Frocks** - Traditional frocks
-- **Skirts** - All skirt types
-- **Trousers** - Pants, trousers
-- **Shorts** - Casual shorts
-- **Jeans** - Denim jeans
-- **Sarees** - Traditional sarees
-
-## ⚙️ Configuration
-
-### Customize Category URLs
-
-Edit `scraper_categories.py` to modify the categories scraped:
-
-```python
-FASHION_BUG_CATEGORIES = {
-    "Women": [
-        {"name": "Women's Clothing", "url": "https://fashionbug.lk/collections/women"},
-    ],
-    "Men": [
-        {"name": "Men's Clothing", "url": "https://fashionbug.lk/collections/men"},
-    ]
-}
-```
-
-### Adjust Pagination
-
-Change the maximum pages to scrape (default is 10):
-
-```python
-async def scrape_category_with_pagination(
-    self,
-    page,
-    base_url: str,
-    category_name: str,
-    gender: str,
-    max_pages: int = 10  # Change this number
-)
-```
-
-### Headless Mode
-
-By default, the scraper runs in headless mode (no browser window). To debug with visible browser:
-
-In `scraper_categories.py`, change:
-
-```python
-browser = await p.chromium.launch(headless=True)  # Set to False
-```
-
-## 🔧 Project Structure
+## Project Structure
 
 ```
 WebScraping/
-├── scraper_categories.py      # Main scraper with pagination
-├── models.py                  # Product data models
-├── config.py                  # Site configurations
-├── requirements.txt           # Python dependencies
-├── organize_data.py          # Data cleaning and organization
-├── scraping_summary.py       # Generate summary reports
-├── test_fashionbug.py        # Test Fashion Bug scraping
-├── test_scraper.py           # Test both sites
-├── README.md                 # This file
-└── output/                   # Generated data files
-    ├── fashion_bug_women.json
-    ├── fashion_bug_women.csv
-    ├── fashion_bug_men.json
-    ├── fashion_bug_men.csv
-    ├── cool_planet_women.json
-    ├── cool_planet_women.csv
-    ├── cool_planet_men.json
-    └── cool_planet_men.csv
+├── api.py                          # FastAPI backend server
+├── scraper_categories.py           # Web scraper for product data
+├── clean_prices.py                 # Price normalization
+├── extract_colors.py               # AI color extraction
+├── import_to_database.py           # Database import logic
+├── run_scraping_pipeline.py        # Automated pipeline orchestrator
+├── fashion_scraper.db              # SQLite database
+├── requirements.txt                # Python dependencies
+├── Dockerfile                      # Docker configuration
+├── .dockerignore                   # Docker build exclusions
+└── FE/                             # React frontend
+    ├── src/
+    │   ├── pages/                  # Page components
+    │   │   ├── Home.tsx
+    │   │   ├── WebScraping.tsx
+    │   │   ├── Analytics.tsx
+    │   │   └── ColorTrends.tsx
+    │   ├── components/             # Reusable components
+    │   │   └── ScrapingProgressModal.tsx
+    │   └── services/
+    │       └── api.ts              # API client
+    └── package.json
 ```
 
-## 🐛 Troubleshooting
+## API Endpoints
 
-### "No products found"
+### Products
+- `GET /api/products` - Get paginated product list with filters
+- `GET /api/filter-options` - Get available filter options
+- `GET /api/price-history/{product_id}` - Get price history for a product
 
-**Solution:**
-1. Check your internet connection
-2. Verify the website is accessible
-3. Run with `headless=False` to see browser behavior
-4. Check if website structure has changed
+### Analytics
+- `GET /api/stats` - Get database statistics
+- `GET /api/price-trends` - Get price trends over time
+- `GET /api/color-trends` - Get color distribution data
+- `GET /api/product-timeline` - Get product launch timeline
+- `GET /api/color-price-trends` - Get color vs price evolution
 
-### Playwright Installation Issues
+### Scraping
+- `POST /api/run-scraping` - Trigger scraping pipeline (Server-Sent Events stream)
 
-**Error:** `Executable doesn't exist`
+### Health
+- `GET /health` - API health check
 
-**Solution:**
+## Database Schema
+
+### Main Tables
+
+- `products` - Product information (id, name, url, site, gender, clothing_type, is_active)
+- `prices` - Price history (product_id, price, date_scraped)
+- `colors` - Color associations (product_id, color, date_extracted)
+- `image_history` - Product image URLs (product_id, image_url, date_captured)
+- `scraping_sessions` - Scraping session metadata (start_time, end_time, products_scraped)
+
+## Technology Stack
+
+### Backend
+- Python 3.11
+- FastAPI - Web framework
+- Playwright/Patchright - Web scraping
+- Pandas - Data processing
+- SQLite - Database
+- Uvicorn - ASGI server
+
+### Frontend
+- React 18
+- TypeScript
+- Vite - Build tool
+- Recharts - Data visualization
+- shadcn/ui - UI components
+- Tailwind CSS - Styling
+
+### DevOps
+- Docker - Containerization
+- Multi-stage builds - Optimized image size
+
+## Troubleshooting
+
+### Docker Build Issues
+
+**Problem**: Build fails during frontend compilation
 ```bash
-playwright install chromium
+# Clear Docker cache and rebuild
+docker build --no-cache -t fashion-scraper .
 ```
 
-Or force reinstall:
+**Problem**: Port 8000 already in use
 ```bash
-playwright install --force chromium
+# Use a different port
+docker run -p 8080:8000 fashion-scraper
+# Access at http://localhost:8080
 ```
 
-### Image URLs Missing
-
-The scraper automatically:
-- Checks `src`, `srcset`, and `data-srcset` attributes
-- Filters out payment gateway logos (mintpay, koko, payhere)
-- Adds `https:` prefix to protocol-relative URLs
-
-If images are still missing, the website may use background-image CSS or heavy JavaScript loading.
-
-### Timeout Errors
-
-If pages are loading slowly, increase wait times in `scraper_categories.py`:
-
-```python
-await asyncio.sleep(4)  # Increase this value
+**Problem**: Container exits immediately
+```bash
+# Check container logs
+docker logs <container_id>
 ```
 
-### Price Formatting Issues
+### Scraping Issues
 
-Fashion Bug prices may include payment plan text. To clean prices:
+**Problem**: Scraper fails to load pages
+- Check internet connection
+- Verify target websites are accessible
+- Playwright browsers may need reinstallation:
+  ```bash
+  playwright install chromium
+  ```
+
+**Problem**: No console output during scraping
+- Ensure `PYTHONUNBUFFERED=1` is set
+- Check that scripts have proper UTF-8 encoding
+- On Windows, encoding issues may occur with special characters
+
+**Problem**: Scraping takes too long
+- This is normal - full scraping can take 10-15 minutes
+- Monitor progress in the modal popup
+- Each site requires multiple page loads and image processing
+
+### Database Issues
+
+**Problem**: Database locked error
+- Close any other connections to fashion_scraper.db
+- Restart the application
+- Only one scraping session can run at a time
+
+**Problem**: Missing data after scraping
+- Check scraping logs for errors
+- Verify import_to_database.py completed successfully
+- Check that all 4 pipeline steps completed
+
+### Frontend Issues
+
+**Problem**: Charts not loading
+- Check browser console for errors
+- Verify API is running and accessible
+- Ensure database has data to display
+
+**Problem**: Filters not working
+- Clear browser cache
+- Check network tab for failed API requests
+- Verify backend is returning filtered data
+
+## Environment Variables
+
+Optional environment variables for configuration:
+
+- `VITE_API_URL` - Frontend API URL (default: http://localhost:8000)
+- `PYTHONUNBUFFERED` - Enable unbuffered Python output (set to 1)
+- `PYTHONIOENCODING` - Set Python encoding (set to utf-8)
+
+## Advanced Docker Usage
+
+### Persistent Database with Volume
+
+To keep database changes between container restarts:
 
 ```bash
-python organize_data.py
+# Create a directory for data
+mkdir data
+cp fashion_scraper.db data/
+
+# Run with volume mount
+docker run -p 8000:8000 -v "$(pwd)/data:/app/data" fashion-scraper
 ```
 
-This applies regex cleaning to extract just the base price (e.g., "Rs 3,390.00").
+Note: On Windows PowerShell, use `${PWD}` instead of `$(pwd)`
 
-## 📈 Performance
+### Docker Compose (Optional)
 
-**Current Results:**
-- Fashion Bug: ~54 products (27 Women + 27 Men)
-- Cool Planet: ~480 products (240 Women + 240 Men)
-- **Total: 534 products**
+Create a `docker-compose.yml` for easier management:
 
-**Speed:**
-- ~3-5 seconds per page
-- ~30-50 seconds per category
-- Full scraping (both sites): ~2-3 minutes
-
-## 🔍 Technical Details
-
-### Image Extraction Logic
-
-The scraper handles multiple image loading patterns:
-
-1. Checks `srcset` attribute (primary for Fashion Bug)
-2. Falls back to `data-srcset` for lazy-loaded images
-3. Checks standard `src` attribute
-4. Filters out payment logos by URL patterns
-5. Adds `https:` protocol to relative URLs
-
-### Selector Strategy
-
-Uses multiple fallback selectors for robustness:
-
-```python
-selectors = ['.product-item', '.product-card', '.product', 'article.product']
+```yaml
+version: '3.8'
+services:
+  fashion-scraper:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONIOENCODING=utf-8
 ```
 
-Waits for elements with `state='attached'` instead of `visible` to handle Fashion Bug's lazy rendering.
-
-### Pagination Detection
-
-Automatically stops when:
-- No products found on page
-- No "next" button detected
-- Maximum page limit reached
-
-## ⚠️ Important Notes
-
-- **Respect Robots.txt**: Always check website's robots.txt before scraping
-- **Rate Limiting**: The scraper includes delays to avoid overwhelming servers
-- **Legal Compliance**: Ensure you have permission to scrape the websites
-- **Data Usage**: This data is for educational/research purposes only
-- **Website Changes**: Websites may change structure; selectors may need updates
-
-## 🤝 Contributing
-
-To add a new website:
-
-1. Add site configuration to `scraper_categories.py`
-2. Test with a small category first
-3. Verify image URLs and prices are extracted correctly
-4. Update this README with the new site
-
-## 📝 License
-
-This project is for **educational purposes only**. Please respect website terms of service and local laws regarding web scraping.
-
-## 🆘 Support
-
-If you encounter issues:
-
-1. Check the Troubleshooting section above
-2. Run with `headless=False` to debug visually
-3. Check if website HTML structure has changed
-4. Verify all dependencies are installed correctly
-
-## 📊 Sample Output
-
-```json
-{
-  "site": "Fashion Bug",
-  "category": "Women",
-  "total_products": 27,
-  "products": [
-    {
-      "name": "GIVO PRINTED TOP",
-      "main_category": "Women",
-      "clothing_type": "Top",
-      "price": "Rs 1,390.00",
-      "image_url": "https://fashionbug.lk/cdn/shop/files/...",
-      "product_url": "https://fashionbug.lk/products/givo-printed-top",
-      "site_name": "Fashion Bug",
-      "scraped_at": "2025-10-10T00:35:13.630108"
-    }
-  ]
-}
+Then run:
+```bash
+docker-compose up
 ```
+
+## Important Notes
+
+- **Data Privacy**: Scraped data is stored locally in SQLite
+- **Rate Limiting**: Built-in delays prevent server overload
+- **Legal Compliance**: For competitive intelligence purposes only
+- **Website Changes**: Selectors may need updates if sites change structure
+- **Resource Usage**: Scraping requires ~2GB RAM for browser automation
+
+## License
+
+All rights reserved. For internal competitive intelligence use only.
 
 ---
 
+**Version:** 2.0
 **Last Updated:** October 2025
-**Version:** 1.0
-**Author:** Web Scraping Project
+**Stack:** Python 3.11, FastAPI, React 18, TypeScript, Docker

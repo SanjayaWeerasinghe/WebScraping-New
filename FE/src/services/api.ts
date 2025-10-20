@@ -12,6 +12,7 @@ export interface ScrapedItem {
   name: string;
   price: number;
   colors: string[];  // Array of colors
+  imageUrl?: string;  // Product image URL
   dateScraped: string;
 }
 
@@ -59,6 +60,42 @@ export interface StatsResponse {
   };
 }
 
+export interface PriceTrendItem {
+  date: string;
+  site: string;
+  gender: string;
+  avg_price: number;
+  min_price: number;
+  max_price: number;
+  product_count: number;
+}
+
+export interface ProductTimelineItem {
+  date: string;
+  total: number;
+  "FashionBug Men"?: number;
+  "FashionBug Women"?: number;
+  "CoolPlanet Men"?: number;
+  "CoolPlanet Women"?: number;
+}
+
+export interface ColorPriceTrendItem {
+  date: string;
+  Black?: number;
+  White?: number;
+  Gray?: number;
+  Red?: number;
+  Blue?: number;
+  Green?: number;
+  Yellow?: number;
+  Orange?: number;
+  Purple?: number;
+  Pink?: number;
+  Brown?: number;
+  Other?: number;
+  [key: string]: number | string | undefined;
+}
+
 /**
  * Fetch all products with optional filters and pagination
  */
@@ -68,6 +105,8 @@ export async function fetchProducts(params?: {
   clothing_type?: string;
   page?: number;
   page_size?: number;
+  start_date?: string;
+  end_date?: string;
 }): Promise<PaginatedResponse> {
   const queryParams = new URLSearchParams();
 
@@ -76,6 +115,8 @@ export async function fetchProducts(params?: {
   if (params?.clothing_type) queryParams.append('clothing_type', params.clothing_type);
   if (params?.page) queryParams.append('page', params.page.toString());
   if (params?.page_size) queryParams.append('page_size', params.page_size.toString());
+  if (params?.start_date) queryParams.append('start_date', params.start_date);
+  if (params?.end_date) queryParams.append('end_date', params.end_date);
 
   const url = `${API_BASE_URL}/api/products${queryParams.toString() ? `?${queryParams}` : ''}`;
 
@@ -139,6 +180,89 @@ export async function fetchStats(): Promise<StatsResponse> {
 
   if (!response.ok) {
     throw new Error(`Failed to fetch stats: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetch price trends over time with optional filters
+ */
+export async function fetchPriceTrends(params?: {
+  site?: string;
+  gender?: string;
+  clothing_type?: string;
+  start_date?: string;
+  end_date?: string;
+}): Promise<PriceTrendItem[]> {
+  const queryParams = new URLSearchParams();
+
+  if (params?.site) queryParams.append('site', params.site);
+  if (params?.gender) queryParams.append('gender', params.gender);
+  if (params?.clothing_type) queryParams.append('clothing_type', params.clothing_type);
+  if (params?.start_date) queryParams.append('start_date', params.start_date);
+  if (params?.end_date) queryParams.append('end_date', params.end_date);
+
+  const url = `${API_BASE_URL}/api/price-trends${queryParams.toString() ? `?${queryParams}` : ''}`;
+
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch price trends: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetch product launch timeline with optional filters
+ */
+export async function fetchProductTimeline(params?: {
+  site?: string;
+  gender?: string;
+  clothing_type?: string;
+}): Promise<ProductTimelineItem[]> {
+  const queryParams = new URLSearchParams();
+
+  if (params?.site) queryParams.append('site', params.site);
+  if (params?.gender) queryParams.append('gender', params.gender);
+  if (params?.clothing_type) queryParams.append('clothing_type', params.clothing_type);
+
+  const url = `${API_BASE_URL}/api/product-timeline${queryParams.toString() ? `?${queryParams}` : ''}`;
+
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch product timeline: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Fetch color price trends over time
+ */
+export async function fetchColorPriceTrends(params?: {
+  site?: string;
+  gender?: string;
+  clothing_type?: string;
+  start_date?: string;
+  end_date?: string;
+}): Promise<ColorPriceTrendItem[]> {
+  const queryParams = new URLSearchParams();
+
+  if (params?.site) queryParams.append('site', params.site);
+  if (params?.gender) queryParams.append('gender', params.gender);
+  if (params?.clothing_type) queryParams.append('clothing_type', params.clothing_type);
+  if (params?.start_date) queryParams.append('start_date', params.start_date);
+  if (params?.end_date) queryParams.append('end_date', params.end_date);
+
+  const url = `${API_BASE_URL}/api/color-price-trends${queryParams.toString() ? `?${queryParams}` : ''}`;
+
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch color price trends: ${response.statusText}`);
   }
 
   return response.json();

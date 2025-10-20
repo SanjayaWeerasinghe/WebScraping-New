@@ -1,9 +1,12 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 export interface Filters {
   competitor: string;
   clothingType: string;
   clothingSubtype: string;
+  startDate: string;
+  endDate: string;
 }
 
 export interface FilterOptions {
@@ -76,6 +79,30 @@ export const FilterBar = ({ filters, onFilterChange, filterOptions }: FilterBarP
             ))}
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="flex-1 min-w-[200px]">
+        <label className="text-sm font-medium text-muted-foreground mb-2 block">
+          Start Date
+        </label>
+        <Input
+          type="date"
+          value={filters.startDate}
+          onChange={(e) => onFilterChange("startDate", e.target.value)}
+          className="bg-background"
+        />
+      </div>
+
+      <div className="flex-1 min-w-[200px]">
+        <label className="text-sm font-medium text-muted-foreground mb-2 block">
+          End Date
+        </label>
+        <Input
+          type="date"
+          value={filters.endDate}
+          onChange={(e) => onFilterChange("endDate", e.target.value)}
+          className="bg-background"
+        />
       </div>
     </div>
   );

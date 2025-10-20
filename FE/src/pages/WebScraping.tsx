@@ -149,6 +149,7 @@ const WebScraping = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Competitor</TableHead>
+                  <TableHead>Image</TableHead>
                   <TableHead>Product Name</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Subtype</TableHead>
@@ -164,6 +165,22 @@ const WebScraping = () => {
                       <Badge variant="outline" className={competitorColors[item.competitor]}>
                         {item.competitor === "fashionbug" ? "FashionBug" : "CoolPlanet"}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {item.imageUrl ? (
+                        <img
+                          src={item.imageUrl}
+                          alt={item.name}
+                          className="w-16 h-16 object-cover rounded border border-border"
+                          onError={(e) => {
+                            e.currentTarget.src = 'https://via.placeholder.com/64?text=No+Image';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-16 h-16 bg-muted rounded border border-border flex items-center justify-center text-xs text-muted-foreground">
+                          No Image
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell className="font-medium max-w-xs truncate">{item.name}</TableCell>
                     <TableCell className="capitalize">{item.clothingType}</TableCell>

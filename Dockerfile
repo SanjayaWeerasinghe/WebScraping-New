@@ -40,6 +40,7 @@ RUN playwright install --with-deps chromium
 # Copy backend source code
 COPY *.py ./
 COPY fashion_scraper.db ./
+COPY FashionColor-0/ ./FashionColor-0/
 
 # Copy built frontend from previous stage
 COPY --from=frontend-builder /app/frontend/dist ./static

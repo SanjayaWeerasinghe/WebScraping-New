@@ -57,13 +57,13 @@ class FashionColorExtractor:
         self.remove_background = remove_background
         self.color_namer = ColorNames()
 
-    def download_image(self, image_url, timeout=10):
+    def download_image(self, image_url, timeout=None):
         """
         Download image from URL.
 
         Args:
             image_url: URL of the image
-            timeout: Request timeout in seconds
+            timeout: Request timeout in seconds (None for no timeout)
 
         Returns:
             PIL Image object or None if failed

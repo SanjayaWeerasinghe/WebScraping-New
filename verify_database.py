@@ -20,7 +20,7 @@ def verify_data():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-
+    #trst
     # Get a few sample products with all their data
     cursor.execute("""
         SELECT
